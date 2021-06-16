@@ -1,0 +1,17 @@
+doctype html
+html
+  head
+    title VPTA-Demo
+    link(rel='stylesheet' href='https://getbootstrap.com/docs/4.4/dist/css/bootstrap.min.css')
+    link(rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css")
+    link(rel='stylesheet' href='css/style.css')
+    script(src='vpa.bundle.js')
+    script(src='//code.jquery.com/jquery-1.11.0.min.js')
+
+  body.bg-light
+    include parts/header.pug
+    main#main
+      block content
+    
+    script(src='https://code.jquery.com/jquery-3.4.1.slim.min.js')
+    script(src='https://getbootstrap.com/docs/4.4/dist/js/bootstrap.bundle.min.js')

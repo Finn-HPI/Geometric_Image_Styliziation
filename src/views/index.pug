@@ -1,0 +1,28 @@
+extends layout.pug
+
+block content
+  .container
+    .row
+      .col 
+        .embed-responsive.embed-responsive-4by3(style = 'position: relative;')
+          canvas.embed-responsive-item#webgl-canvas Your browser does not support the canvas element.
+          canvas.embed-responsive-item#mask-canvas Your browser does not support the canvas element.
+      .col-2#controls-container
+      .col-3#controls-container3
+    .row.top20
+      .col-2#controls-container2
+      .col-3#controls-container7
+      .col 
+        .embed-responsive.embed-responsive-4by3(style = 'position: relative;')
+          canvas.embed-responsive-item#point-canvas Your browser does not support the canvas element.
+          canvas.embed-responsive-item#clip-canvas Your browser does not support the canvas element.
+    .row.top20
+      .col-3#controls-container4
+      .col-3#controls-container6
+      .col#controls-container5
+    .row.top20
+      .col
+        .embed-responsive.embed-responsive-4by3
+          img#svg
+  script
+    include parts/setup.js

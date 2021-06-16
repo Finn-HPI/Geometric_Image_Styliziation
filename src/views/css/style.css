@@ -1,0 +1,172 @@
+* {
+    border-radius: 0 !important;
+}
+
+body {
+    font-family: 'Source Sans Pro', sans-serif !important;
+    overflow-y: scroll;
+}
+
+#webgl-canvas {
+    position: absolute;
+    z-index: 1;
+	border: none;
+	background-color: lightgray;
+}
+
+
+#point-canvas {
+    position: absolute;
+    z-index: 1;
+	border: none;
+	background-color: lightgray;
+}
+
+#clip-canvas {
+    position: absolute;
+    z-index: 3;
+}
+
+#mask-canvas {
+    position: absolute;
+    z-index: 3;
+}
+
+#controls-container3 {
+    background-color: #ecebebc7;
+    overflow-y: auto;
+}
+
+#controls-container4 {
+    background-color: #ecebebc7;
+    overflow-y: auto;
+}
+
+#controls-container5 {
+    background-color: #ecebebc7;
+    overflow-y: auto;
+}
+
+#controls-container6 {
+    background-color: #ecebebc7;
+    overflow-y: auto;
+}
+
+#controls-container7 {
+    background-color: #ecebebc7;
+    overflow-y: auto;
+}
+
+h1, h2, h3, h4, h5, h6, a {
+    color: #1c75bc;
+    font-weight: 300;
+}
+
+h4, h5, h6 {
+    text-transform: uppercase;
+}
+
+#svg {
+    position: absolute; 
+    left: 0px; 
+    top:0px;
+    z-index: 1;;
+}
+
+.btn-primary {
+    background-color: #1c75bc;
+    border-color: #1c75bc;
+}
+.btn-primary:hover {
+    background-color: #27aae1;
+    border-color: #27aae1;
+}
+
+pre, code {
+    font-family: 'Source Code Pro';
+}
+
+footer {
+    padding-top: 6rem;
+}
+
+footer {
+    padding-bottom: 2rem;
+}
+
+section {
+    padding-top: 2rem;
+}
+
+a:hover {
+    text-decoration: none;
+}
+
+.top5 { margin-top: 5px; }
+.top7 { margin-top: 7px; }
+.top10 { margin-top: 10px; }
+.top15 { margin-top: 15px; }
+.top17 { margin-top: 17px; }
+.top20 { margin-top: 20px; }
+
+#icon {
+    margin-top: -15px !important; 
+}
+
+nav .dropdown-menu {
+    right: 0;
+    left: auto;
+}
+
+nav .dropdown-item {
+    color: rgba(255, 255, 255, 0.50);
+}
+
+nav .dropdown-item:hover {
+    color: rgba(255, 255, 255, 0.75);
+    background: none;
+}
+
+nav .dropdown-item:active {
+    color: rgba(255, 255, 255, 1.00);
+    background: none;
+}
+
+nav .dropdown-divider {
+    border-top-color: rgba(255, 255, 255, 0.50);
+}
+
+.exercise-thumbnail {
+    height: 200px;
+    object-fit: cover;
+}
+
+#description img {
+    width: 65%;
+}
+
+label {
+    margin-top: 1em;
+}
+
+input[type=button] {
+    margin-top: 1em;
+}
+
+input[type=file] {
+    display: none;
+}
+
+.fileInputWrapper > input {
+    margin: 0;
+}
+
+#controls-container {
+    background-color: #ecebebc7;
+    overflow-y: auto;
+}
+
+#controls-container2 {
+    background-color: #ecebebc7;
+    overflow-y: auto;
+}
