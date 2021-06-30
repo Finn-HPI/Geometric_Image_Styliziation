@@ -67,6 +67,11 @@ export function getColorFromHex(color: string){
     return new Color(0,0,0);
 }
 
+export function colorToGrayScale(color: paper.Color){
+    let l = color.red * 0.3 + color.green * 0.59 + color.blue * 0.11; 
+    return new Color(l, l, l);
+}
+
 export function findMedianColor(points: Set<DataPoint>){
     let rRange = [-1,-1];
     let gRange = [-1,-1];

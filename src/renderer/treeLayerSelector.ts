@@ -127,7 +127,7 @@ export class TreeSelector {
         });
 
         const maxLevel = this._control.createSliderInput(
-            'max Level', '', 15, '', 5, 40, 1, 'range');
+            'max Level', '', 15, '', 0, 40, 1, 'range');
 
         maxLevel.addEventListener('change', (event) => {
             this._maxLevel = (event.target as HTMLInputElement).valueAsNumber
