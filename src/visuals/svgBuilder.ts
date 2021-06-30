@@ -77,13 +77,6 @@ export class SVGBuilder{
             color0: new Color(0,0,0),
             color1: new Color(0,0,0)
         };
-        this.setupClipper();
-    }
-
-    public async setupClipper(){
-        this._clipper = await clipperLib.loadNativeClipperLibInstanceAsync(
-            clipperLib.NativeClipperLibRequestedFormat.WasmWithAsmJsFallback,
-        );
     }
 
     public buildVP(node: VPNode, clip: paper.PathItem, level: number, clipPath: paper.PathItem): paper.PathItem | null{
@@ -129,7 +122,6 @@ export class SVGBuilder{
 
         if(path !== null){
             node.path = node.path.subtract(path);
-            node.path = node.path.intersect(clipPath);
         }
 
         return path == null? null : path.unite(node.path);
@@ -234,8 +226,6 @@ export class SVGBuilder{
 
             rect.fillColor = node.color;
             node.path = rect;
-            // if(node.path.intersects(clipPath))
-                node.path = node.path.intersect(clipPath);
         }
     }
 
@@ -404,7 +394,7 @@ export class SVGBuilder{
                     let a = (level - minLevel) / (maxLevel - minLevel);
                     let newStrokeWidth = this.lerp(settings.border0, settings.border1, a).toString();
 
-                    let updated = strokeRegex[0].replace(stroke, this.borderModeToAttributeValue(settings, a, color));
+                    let updated = strokeRegex[0].replace('stroke="' + stroke + '"', 'stroke="' + this.borderModeToAttributeValue(settings, a, color) + '"');
                     updated = updated.replace('stroke-width="' + strokeWidth + '"', 'stroke-width="' + newStrokeWidth + '"');
 
                     if(colorRegex && colorRegex.length >= 2){
@@ -415,6 +405,8 @@ export class SVGBuilder{
                             }else{
                                 parts[i] = parts[i].replace(' ' + colorRegex[0], '');
                             }
+                        }else{
+                            parts[i] = parts[i].replace(colorRegex[0], 'fill="none"');
                         }
                     }else if(settings.borderMode == BorderMode.BORDER || settings.borderMode == BorderMode.WIREFRAME)
                         updated += ' fill="none"';
