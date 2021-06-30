@@ -150,11 +150,11 @@ export class ImgSettings{
                     type, 
                     value.maxLod, 
                     value.maxLevel,
-                    this._renderer.globalSettings.getBorderSettings()
+                    this._renderer.globalSettings.getSettings()
                 );
                this._renderer.builder.treeToSvg();
             });
-            this._renderer.builder.applyNewBorderSettings(this._renderer.globalSettings.getBorderSettings());
+            this._renderer.builder.applyNewBorderSettings(this._renderer.globalSettings.getSettings());
             this._renderer.builder.displayOnCanvas('svg');
             this._renderer.brushTool.needsSetup();
             this._renderer.treeSelector.needsSetup();

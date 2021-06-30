@@ -6,12 +6,11 @@ import {
     Rectangle,
     Size
 } from 'paper';
-import { BorderMode, BorderSettings } from '../renderer/globalSettings';
+import { BorderMode, ColorMode, Settings } from '../renderer/globalSettings';
 import { KdNode } from '../trees/kd/kdNode';
 import { QuadNode } from '../trees/quad/quadNode';
-import { Tree } from '../trees/tree';
 import { VPNode } from '../trees/vp/vpNode';
-import { colorToHex } from '../utils/colorUtil';
+import { colorToGrayScale, colorToHex, getColorFromHex } from '../utils/colorUtil';
 import { GlTFBuilder } from './gltfBuilder';
 
 export enum BuildModes {
@@ -37,7 +36,7 @@ export class SVGBuilder{
     protected _minUsedLevel!: number;
     protected _width!: number;
     protected _height!: number;
-    protected _borderSettings!: BorderSettings;
+    protected _settings!: Settings;
 
     protected _background!: paper.PathItem;
     protected _backColor!: paper.Color;
@@ -68,10 +67,11 @@ export class SVGBuilder{
         this._colorGroups = new Map<string, Array<string>>();
 
         //default BorderSettings
-        this._borderSettings = {
-            mode: BorderMode.BORDER,
-            border0: 1,
-            border1: 1,
+        this._settings = {
+            colorMode: ColorMode.COLOR,
+            borderMode: BorderMode.BORDER,
+            border0: 0.3,
+            border1: 0.3,
             color0: new Color(0,0,0),
             color1: new Color(0,0,0)
         };
@@ -101,9 +101,9 @@ export class SVGBuilder{
         let l: paper.PathItem | null = null;
         let r: paper.PathItem | null = null;
 
-        if(node.left != null && level * 255 / this._maxLevel < node.left.lod)
+        if(node.left != null && node.left.lod / 255 > level / this._maxLevel)
             l = this.buildVP(node.left, inside, level + 1, clipPath);
-        if(node.right != null && level * 255 / this._maxLevel < node.right.lod)
+        if(node.right != null && node.right.lod / 255 > level / this._maxLevel)
             r = this.buildVP(node.right, outside, level + 1, clipPath);
 
         if(l == null && r == null)
@@ -273,7 +273,7 @@ export class SVGBuilder{
         }
     }
 
-    public buildFrom(tree: any, width: number, height: number, type: DataStructure, maxLod: number = 255, maxLevel: number = 15, borderSettings: BorderSettings): void{
+    public buildFrom(tree: any, width: number, height: number, type: DataStructure, maxLod: number = 255, maxLevel: number = 15, settings: Settings): void{
         this._scope = new PaperScope();
         this._scope.setup(new Size(width, height));
         this._scope.activate();
@@ -285,7 +285,7 @@ export class SVGBuilder{
 
         this._maxUsedLevel = 0;
         this._maxLevel = maxLevel;
-        this._borderSettings = borderSettings;
+        this._settings = settings;
 
         this._background = new Path.Rectangle(new Rectangle(new Point(0, 0), new Size(width, height)));
         this._background.fillColor = new Color(0,0,0);
@@ -344,7 +344,10 @@ export class SVGBuilder{
             if(each.path !== null){
                 each.maxLevel = this._maxUsedLevel;
                 each.minLevel = this._minUsedLevel;
-                let part = (each.path.exportSVG({asString: true}) as string).replace('xmlns="http://www.w3.org/2000/svg" ', '');
+                let part = (each.path.exportSVG({asString: true}) as string).replace('xmlns="http://www.w3.org/2000/svg" ', '').replace(
+                    ' stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" stroke-dasharray="" stroke-dashoffset="0" font-family="none" font-weight="none" font-size="none" text-anchor="none" style="mix-blend-mode: normal"', 
+                    ''
+                ).replace('  ', ' ');
                 part = '\t' + part.slice(0, part.length-2) 
                     + ' depth="' + each.point?.depth 
                     + '" segment="' + each.point?.segment
@@ -355,9 +358,12 @@ export class SVGBuilder{
                     + '" min-level="' + each.minLevel
                     + '" max-level="' + each.maxLevel
                     + '"/>\n';
+                let path = part.match(/path d="([^"]*)"/);
+                if(path && path[1] == '')
+                    return;
                 let regex = part.match(/(fill="#[^"]*"\sfill-rule="nonzero")/);
                 if(regex){
-                    part = part.replace(regex[0], '');
+                    part = part.replace(' ' + regex[0] + ' ', ' ');
                     let color = regex[1];
                     if(this._colorGroups.get(color) !== undefined)
                         (this._colorGroups.get(color) as Array<string>).push(part);
@@ -368,15 +374,16 @@ export class SVGBuilder{
         });
     }
 
-    public applyNewBorderSettings(borderSettings: BorderSettings){
-        this._borderSettings = borderSettings;
-        console.log(borderSettings);
-        this._colorGroups.forEach((parts: Array<string>) => {
+    public applyNewBorderSettings(settings: Settings){
+        this._settings = settings;
+
+        this._colorGroups.forEach((parts: Array<string>, color: string) => {
             for(let i = 0; i < parts.length; i++){
                 let part = parts[i];
                 let strokeRegex = part.match(/stroke="([^"]*)"\sstroke-width="([^"]*)"/);
                 let levelRegex = part.match(/level="([^"]*)"\smin-level="([^"]*)"\smax-level="([^"]*)"/);
                 let colorRegex = part.match(/fill="([^"]*)"/);
+                let originalColorRegex = color.match(/fill="([^"]*)"/);
 
                 if(strokeRegex && strokeRegex.length >= 3 && levelRegex && levelRegex.length >= 4){
                     let stroke = strokeRegex[1];
@@ -384,31 +391,48 @@ export class SVGBuilder{
                     let level = Number(levelRegex[1]);
                     let minLevel = Number(levelRegex[2])
                     let maxLevel = Number(levelRegex[3]);
-                    
+
                     let a = (level - minLevel) / (maxLevel - minLevel);
-                    let newStrokeWidth = this.lerp(borderSettings.border0, borderSettings.border1, a).toString();
-    
-                    let updated = strokeRegex[0].replace(stroke, this.borderModeToAttributeValue(borderSettings, a));
-                    updated = updated.replace(strokeWidth, newStrokeWidth);
+                    let newStrokeWidth = this.lerp(settings.border0, settings.border1, a).toString();
+
+                    let updated = strokeRegex[0].replace(stroke, this.borderModeToAttributeValue(settings, a, color));
+                    updated = updated.replace('stroke-width="' + strokeWidth + '"', 'stroke-width="' + newStrokeWidth + '"');
 
                     if(colorRegex && colorRegex.length >= 2){
-                        if(borderSettings.mode == BorderMode.FILL || borderSettings.mode == BorderMode.FILL_AND_BORDER)
-                            parts[i] = parts[i].replace(colorRegex[0], '');
-                    }else if(borderSettings.mode == BorderMode.BORDER)
+                        if(settings.borderMode == BorderMode.FILL || settings.borderMode == BorderMode.FILL_AND_BORDER){
+                            if(settings.colorMode == ColorMode.GRAY_SCALE && originalColorRegex){
+                                let newColor = colorToHex(colorToGrayScale(getColorFromHex(originalColorRegex[1])));
+                                // console.log(color, newColor, getColorFromHex(color), colorToGrayScale(getColorFromHex(color)).red, colorToGrayScale(getColorFromHex(color)).green, colorToGrayScale(getColorFromHex(color)).blue);
+                                parts[i] = parts[i].replace(colorRegex[1], newColor);
+                            }else{
+                                parts[i] = parts[i].replace(' ' + colorRegex[0], '');
+                            }
+                        }
+                    }else if(settings.borderMode == BorderMode.BORDER || settings.borderMode == BorderMode.WIREFRAME)
                         updated += ' fill="none"';
-
+                    else if(settings.colorMode == ColorMode.GRAY_SCALE && originalColorRegex){
+                        let newColor = colorToHex(colorToGrayScale(getColorFromHex(originalColorRegex[1])));
+                        // console.log(color, newColor, getColorFromHex(color), colorToGrayScale(getColorFromHex(color)).red, colorToGrayScale(getColorFromHex(color)).green, colorToGrayScale(getColorFromHex(color)).blue);
+                        updated += ' fill="' + newColor + '"';
+                    }
                     parts[i] = parts[i].replace(strokeRegex[0], updated);
                 }
             }
         });
     }
 
-    private borderModeToAttributeValue(settings: BorderSettings, a: number){
+    private borderModeToAttributeValue(settings: Settings, a: number, nodeColor: string){
+        switch(settings.borderMode){
+            case BorderMode.WIREFRAME:
+                let colorRegex = nodeColor.match(/fill="(#[^"]*)"\sfill-rule="nonzero"/);
+                if(colorRegex)
+                    return colorRegex[1];
+                break;
+            case BorderMode.FILL:
+                return 'none';
+        }
         let color = this.colorLerp(settings.color0, settings.color1, a);
-        if(settings.mode != BorderMode.FILL)
-            return colorToHex(color);
-        else
-            return 'none';
+        return colorToHex(color);
     }
 
     private generateCompleteSvg(): string{
