@@ -28,7 +28,7 @@ export class GlTFBuilder {
         minBlue: number,
         maxBlue: number
     ){
-        let paddingLength = 0;//(indices.length) % 4;
+        let paddingLength = 0;
         let indices2 = new Uint32Array(indices.length + paddingLength);
 
         for(let i = 0; i < indices2.length; i++)

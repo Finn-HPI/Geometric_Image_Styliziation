@@ -48,8 +48,11 @@
     "webpack-glsl-loader": "^1.0.1"
   },
   "dependencies": {
+    "boolean-operations": "^0.1.0",
     "express": "^4.17.1",
     "fast-2d-poisson-disk-sampling": "^1.0.1",
-    "onnxjs": "^0.1.8"
+    "onnxjs": "^0.1.8",
+    "paper-clipper": "^1.1.0",
+    "raphael": "^2.3.0"
   }
 }

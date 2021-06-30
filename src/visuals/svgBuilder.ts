@@ -12,6 +12,7 @@ import { QuadNode } from '../trees/quad/quadNode';
 import { VPNode } from '../trees/vp/vpNode';
 import { colorToGrayScale, colorToHex, getColorFromHex } from '../utils/colorUtil';
 import { GlTFBuilder } from './gltfBuilder';
+import { clipperLib, clipperOffset, clipperUnite, paperClipperSimplify } from 'paper-clipper';
 
 export enum BuildModes {
     CIRCLE,
@@ -47,6 +48,7 @@ export class SVGBuilder{
 
     protected _maxLod!: number;
     protected _colorGroups!: Map<string, Array<string>>;
+    protected _clipper!: clipperLib.ClipperLibWrapper;
 
     private colorLerp(x: paper.Color, y: paper.Color, a: number){
         return x.multiply(1-a).add(y.multiply(a))
@@ -75,6 +77,13 @@ export class SVGBuilder{
             color0: new Color(0,0,0),
             color1: new Color(0,0,0)
         };
+        this.setupClipper();
+    }
+
+    public async setupClipper(){
+        this._clipper = await clipperLib.loadNativeClipperLibInstanceAsync(
+            clipperLib.NativeClipperLibRequestedFormat.WasmWithAsmJsFallback,
+        );
     }
 
     public buildVP(node: VPNode, clip: paper.PathItem, level: number, clipPath: paper.PathItem): paper.PathItem | null{
@@ -118,13 +127,15 @@ export class SVGBuilder{
         else if(r !== null)
             path = r;
 
-        if(path !== null)
+        if(path !== null){
             node.path = node.path.subtract(path);
+            node.path = node.path.intersect(clipPath);
+        }
 
         return path == null? null : path.unite(node.path);
     }
 
-    public buildQuad(node: QuadNode, level: number){
+    public buildQuad(node: QuadNode, level: number, clipPath: paper.PathItem){
         if(node == null)
             return;
 
@@ -135,19 +146,19 @@ export class SVGBuilder{
 
         let tl = false, tr = false, bl = false, br = false;
         if(node.topLeftChild != null && level * 255 / this._maxLevel < node.topLeftChild.lod)
-            this.buildQuad(node.topLeftChild, level + 1);
+            this.buildQuad(node.topLeftChild, level + 1, clipPath);
         else
             tl = true;
         if(node.topRightChild != null && level * 255 / this._maxLevel < node.topRightChild.lod)
-            this.buildQuad(node.topRightChild, level + 1);
+            this.buildQuad(node.topRightChild, level + 1, clipPath);
         else
             tr = true;
         if(node.bottomLeftChild != null && level * 255 / this._maxLevel < node.bottomLeftChild.lod)
-            this.buildQuad(node.bottomLeftChild, level + 1);
+            this.buildQuad(node.bottomLeftChild, level + 1, clipPath);
         else
             bl = true;
         if(node.bottomRightChild != null && level * 255 / this._maxLevel < node.bottomRightChild.lod)
-            this.buildQuad(node.bottomRightChild, level + 1);
+            this.buildQuad(node.bottomRightChild, level + 1, clipPath);
         else 
             br = true;
 
@@ -223,10 +234,12 @@ export class SVGBuilder{
 
             rect.fillColor = node.color;
             node.path = rect;
+            // if(node.path.intersects(clipPath))
+                node.path = node.path.intersect(clipPath);
         }
     }
 
-    public buildKd(node: KdNode, area: paper.Rectangle, level: number){
+    public buildKd(node: KdNode, area: paper.Rectangle, level: number, clipPath: paper.PathItem){
         if(node == null || node.point == null)
             return;
             
@@ -241,11 +254,11 @@ export class SVGBuilder{
         let l = false, r = false;
         let rect;
         if(node.left != null && level * 255 / this._maxLevel < node.left.lod)
-            this.buildKd(node.left, left, level + 1);
+            this.buildKd(node.left, left, level + 1, clipPath);
         else
             l = true;
         if(node.right != null && level * 255 / this._maxLevel < node.right.lod)
-            this.buildKd(node.right, right,level + 1);
+            this.buildKd(node.right, right,level + 1, clipPath);
         else    
             r = true;
 
@@ -305,21 +318,17 @@ export class SVGBuilder{
     public buildTree(tree: any, type: DataStructure){
         if(tree.clipPath == undefined)
             tree.clipPath = this._background;
+
+        // tree.clipPath = new Path.Circle(new Point(300,400), 250);
+        // tree.fillColor = new Color(0,0,0);
         switch(type){
             case DataStructure.VP: this.buildVP(tree.root, this._background, 0, tree.clipPath);
                 break;
-            case DataStructure.QUAD: this.buildQuad(tree.root, 0);
+            case DataStructure.QUAD: this.buildQuad(tree.root, 0, tree.clipPath);
                 break;
             case DataStructure.KD: 
-                this.buildKd(tree.root, new Rectangle(new Point(0,0), new Point(this._width, this._height)), 0);
+                this.buildKd(tree.root, new Rectangle(new Point(0,0), new Point(this._width, this._height)), 0, tree.clipPath);
         }
-
-        // tree.allTreeNodes(tree.root).forEach((each: any) => {
-        //     if(each.path)
-        //         each.path = each.path.intersect(tree.clipPath, {trace: false});
-        // });
-
-        tree.clipPath.clipMask = true;
         console.log('finished build');
     }
 
@@ -335,6 +344,7 @@ export class SVGBuilder{
             return '';
         return (this._tree.clipPath.exportSVG({asString: true}) as string).replace('xmlns="http://www.w3.org/2000/svg" ', '') + '\n';
     }
+
 
     public treeToSvg(){
         if(this._tree.root == null) 
@@ -376,7 +386,6 @@ export class SVGBuilder{
 
     public applyNewBorderSettings(settings: Settings){
         this._settings = settings;
-
         this._colorGroups.forEach((parts: Array<string>, color: string) => {
             for(let i = 0; i < parts.length; i++){
                 let part = parts[i];
@@ -402,7 +411,6 @@ export class SVGBuilder{
                         if(settings.borderMode == BorderMode.FILL || settings.borderMode == BorderMode.FILL_AND_BORDER){
                             if(settings.colorMode == ColorMode.GRAY_SCALE && originalColorRegex){
                                 let newColor = colorToHex(colorToGrayScale(getColorFromHex(originalColorRegex[1])));
-                                // console.log(color, newColor, getColorFromHex(color), colorToGrayScale(getColorFromHex(color)).red, colorToGrayScale(getColorFromHex(color)).green, colorToGrayScale(getColorFromHex(color)).blue);
                                 parts[i] = parts[i].replace(colorRegex[1], newColor);
                             }else{
                                 parts[i] = parts[i].replace(' ' + colorRegex[0], '');
@@ -412,7 +420,6 @@ export class SVGBuilder{
                         updated += ' fill="none"';
                     else if(settings.colorMode == ColorMode.GRAY_SCALE && originalColorRegex){
                         let newColor = colorToHex(colorToGrayScale(getColorFromHex(originalColorRegex[1])));
-                        // console.log(color, newColor, getColorFromHex(color), colorToGrayScale(getColorFromHex(color)).red, colorToGrayScale(getColorFromHex(color)).green, colorToGrayScale(getColorFromHex(color)).blue);
                         updated += ' fill="' + newColor + '"';
                     }
                     parts[i] = parts[i].replace(strokeRegex[0], updated);
